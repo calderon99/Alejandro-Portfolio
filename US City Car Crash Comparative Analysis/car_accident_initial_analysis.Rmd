@@ -1,0 +1,362 @@
+---
+title: Car Accidents and Population Growth in Baton Rouge, LA, Tempe, AZ, and Seattle,
+  WA
+author: "Alejandro Calderon, Dylan Craker, Trent Douglas"
+date: "5/25/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dplyr)
+library(readxl)
+library(lubridate)
+library(grDevices)
+library(ggplot2)
+```
+
+```{r load, include=FALSE}
+baton_rouge_data <- read.csv("data/Baton_Rouge_Traffic_Incidents.csv")
+baton_rouge_population <- read_xlsx("data/baton_rouge_pop2.xlsx")
+seattle_data <- read.csv("data/seattle_Collisions.csv")
+seattle_population <- read_xlsx("data/seattle_population.xlsx")
+tempe_data <- read.csv("data/tempe_Crash_Data_Report__detail_.csv")
+national_data <- read_xlsx("data/nhtsa_yearly_national_stats.xlsx")
+```
+```{r baton_rouge_maniputalion, include=FALSE}
+baton_rouge <- select(baton_rouge_data, CRASH.DATE, OCCURED.ON, FATALITY, INJURY, PRIMARY.FACTOR, SECOND.FACTOR, PEDESTRIAN)
+br_dataframe <- sapply(baton_rouge, is.factor)
+baton_rouge[br_dataframe] <- lapply(baton_rouge[br_dataframe], function(FATALITY) as.numeric(as.character(FATALITY)))
+transform(baton_rouge, FATALITY =as.numeric(FATALITY))
+
+baton_rouge$year <- strptime(as.character(baton_rouge$CRASH.DATE), "%m/%d/%Y")
+baton_rouge$year <- format(baton_rouge$year, "%Y")
+br_data <- select(baton_rouge, OCCURED.ON, FATALITY, INJURY, PRIMARY.FACTOR, SECOND.FACTOR, PEDESTRIAN, year)
+
+```
+
+```{r baton_rouge_data_cleaning, include=FALSE}
+br_data$FATALITY[br_data$FATALITY == ""] <- 0
+br_data$FATALITY[br_data$FATALITY == "X"] <- 1
+br_data$FATALITY <- as.numeric(br_data$FATALITY)
+
+br_data$INJURY[br_data$INJURY == ""] <- as.numeric(0)
+br_data$INJURY[br_data$INJURY == "X"] <- as.numeric(1)
+br_data$INJURY <- as.numeric(br_data$INJURY)
+
+br_data$PEDESTRIAN[br_data$PEDESTRIAN == ""] <- as.numeric(0)
+br_data$PEDESTRIAN[br_data$PEDESTRIAN == "X"] <- as.numeric(1)
+br_data$PEDESTRIAN <- as.numeric(br_data$PEDESTRIAN)
+
+br_data$SECOND.FACTOR[br_data$SECOND.FACTOR == ""] <- "NONE"
+```
+
+```{r br_summary, include=FALSE}
+br_summary <- summary(br_data)
+br_summary
+```
+
+```{r br_desc_stats, include=FALSE}
+primary_factors_br <- unique(br_data$PRIMARY.FACTOR)
+
+accident_totals <- br_data %>% group_by("primary_reason" = br_data$PRIMARY.FACTOR) %>% count(name = "total_obs")
+year_totals <- br_data %>% group_by("year" = br_data$year) %>% count(name = "year_totals")
+
+
+br_fatality <- subset(br_data, subset = (FATALITY == 1)) 
+fatality_counts <- br_data %>% group_by(year) %>% filter(FATALITY == 1) %>% count(name = "fatality_counts")
+fatality_counts$year <- as.numeric(fatality_counts$year)
+
+br_no_fatality <- subset(br_data, subset = (FATALITY == 0))
+no_fatality_count <- br_no_fatality %>% group_by(year) %>% filter(FATALITY == 0) %>% count(name = "no_fatality_counts") %>% filter(year < 2021)
+no_fatality_count$year <- as.numeric(no_fatality_count$year)
+```
+
+```{r fatality_plot_work, include=FALSE}
+fatality_plot <- ggplot() +
+  geom_point(data = fatality_counts, aes(year, fatality_counts), colour = "red")+
+  geom_point(data = no_fatality_count, aes(year, no_fatality_counts), colour = "blue")+
+  xlim(c(2010, 2020)) +
+  scale_y_continuous(trans = 'log2') +
+  ylab("Total Number of Fatalities") +
+  xlab("Year")
+```
+
+```{r fatality_plot, include=FALSE}
+print(fatality_plot + ggtitle("Number of Car Accidents in Baton Rouge from 2010-2021"))
+```
+
+```{r descriptive, include=FALSE}
+fatality_count_br <- br_fatality %>% group_by(br_fatality$year) %>% count()
+no_fatality_count_br <- br_no_fatality %>% group_by(br_no_fatality$year) %>% count()
+```
+```{r descript_plot, include=FALSE}
+br_desc_plot <- ggplot(accident_totals, aes(x=total_obs, y=primary_reason)) +
+  geom_bar(stat="identity") +
+  ylab("Cause of Accident") +
+  xlab("Frequency") +
+  scale_x_continuous(trans = 'log2')
+print(br_desc_plot + ggtitle("Cause of Car Accidents in Baton Rouge from 2010-2021"))
+```
+
+```{r summary stats, include=FALSE}
+summary(accident_totals$total_obs)
+```
+
+```{r br_population, include=FALSE}
+br_pop <- baton_rouge_population %>% filter(`Geographic Area` == "Baton Rouge city, Louisiana") %>% select("2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019")
+br_pop_rotated <- br_pop %>% pivot_longer(br_pop, cols = starts_with("20"), names_to = "year", values_to = "pop")
+baton_rouge_fat_no_fat <- merge(fatality_counts, no_fatality_count, by = "year")
+```
+```{r merged_data_baton_rouge, include=FALSE}
+baton_rouge_totals <- merge(baton_rouge_fat_no_fat, br_pop_rotated, by = "year")
+br_area <- 88.65
+baton_rouge_totals$pop_density <- (baton_rouge_totals$pop/br_area)
+```
+
+```{r br_regression, include=FALSE}
+baton_rouge_regression <- summary(lm(fatality_counts ~ pop_density + year, data = baton_rouge_totals))
+baton_rouge_regression
+```
+
+```{r seattle, include=FALSE}
+##Filter unnecessary columns
+seattle_data <- select(seattle_data, ADDRTYPE, INJURIES, SERIOUSINJURIES, FATALITIES, INCDTTM, SEVERITYDESC, UNDERINFL, SPEEDING)
+
+##Change date to only year
+seattle_data$Year <- strptime(as.character(seattle_data$INCDTTM), "%m/%d/%Y")
+seattle_data$Year <- format(seattle_data$Year, "%Y")
+
+##Change blanks to NA & fix columns
+seattle_data$ADDRTYPE[seattle_data$ADDRTYPE == ""] <- NA
+seattle_data$UNDERINFL[seattle_data$UNDERINFL == ""] <- NA
+seattle_data$UNDERINFL[seattle_data$UNDERINFL == "0"] <- NA
+seattle_data$SPEEDING[seattle_data$SPEEDING == ""] <- NA
+seattle_data$SEVERITYDESC[seattle_data$SEVERITYDESC == "Unknown"] <- "Inconclusive"
+seattle_data$FATALITIES[seattle_data$FATALITIES == "2"] <- "1"
+seattle_data$FATALITIES[seattle_data$FATALITIES == "5"] <- "1"
+
+
+##Subset to years in used in analysis
+sea_data <- subset(seattle_data, subset = (Year >= "2012" & Year <= "2019"))
+sea_data <- na.omit(sea_data)
+sea_data_summary <- summary(sea_data)
+sea_data_summary
+
+accident_totals_sea <- sea_data %>% group_by("SEVERITYDESC" = sea_data$SEVERITYDESC) %>% count(name = "total_obs")
+year_totals_sea <- sea_data %>% group_by("Year" = sea_data$Year) %>% count(name = "year_totals")
+accident_totals_sea
+year_totals_sea
+
+sea_fatality <- subset(sea_data, subset = (FATALITIES == 1))
+fatality_counts_sea <- sea_data %>% group_by(Year) %>% filter(FATALITIES == 1) %>% count(name = "fatality_counts")
+fatality_counts_sea$Year <- as.numeric(fatality_counts_sea$Year)
+
+sea_no_fatality <- subset(sea_data, subset = (FATALITIES == 0))
+no_fatality_count_sea <- sea_no_fatality %>% group_by(Year) %>% filter(FATALITIES == 0) %>% count(name = "no_fatality_counts") %>% filter(Year < 2021)
+no_fatality_count_sea$Year <- as.numeric(no_fatality_count_sea$Year)
+
+# fatality_lm <- lm(fatality_counts_sea~Year, data = fatality_counts_sea)
+# predicted_fatality <- data.frame(fatality_pred = predict(fatality_counts_sea, fatality_lm))
+
+```
+
+```{r sea_fatality, include=FALSE}
+##Did my best, not sure why its not running
+fatality_plot_sea <- ggplot() +
+  geom_point(data = fatality_counts_sea, aes(Year, fatality_counts), colour = "red")+
+  # geom_line(colour = "red2", data = predicted_fatality, aes(x = Year, y = fatality_counts_sea)) +
+  geom_point(data = no_fatality_count_sea, aes(Year, no_fatality_counts), colour = "blue")+
+  # geom_smooth(method = 'lm', formula = no_fatality_count_sea~Year) +
+  xlim(c(2012, 2019)) +
+  scale_y_continuous(trans = 'log2') +
+  ylab("Total Number of Fatalities") +
+  xlab("Year")
+print(fatality_plot_sea + ggtitle("Number of Car Accidents in Seattle from 2012-2019"))
+```
+
+```{r sea_plots, include=FALSE}
+##Plot Severity of Accidents
+sea_severity <- ggplot(sea_data) +
+  geom_bar(aes(x = SEVERITYDESC)) +
+  theme(axis.text.x = element_text(size = 6))+
+  scale_y_continuous(trans = 'log2')+
+  xlab("Accident Result")+
+  ylab("Total Observed")
+print(sea_severity + ggtitle("Total Severity of Accidents in Seattle"))
+```
+
+
+
+```{r sea_regression, include=FALSE}
+seattle_fat_no_fat<- merge(fatality_counts_sea, no_fatality_count_sea, by = "Year")
+seattle_totals <- merge(seattle_fat_no_fat, seattle_population, by = "Year")
+seattle_area <- 83.78
+seattle_totals$pop_density <- (seattle_totals$Population/seattle_area)
+
+seattle_regression <- summary(lm(fatality_counts ~ pop_density + Year, data = seattle_totals))
+seattle_regression
+```
+
+
+```{r tempe data manipulation, include=FALSE}
+#initial filter of columns
+tempe_filter <- tempe_data %>%
+  select(Year, Totalinjuries, Totalfatalities, Injuryseverity, AlcoholUse_Drv1,
+         DrugUse_Drv1, Unitaction_One, Violation1_Drv1, StreetName, CrossStreet, Lightcondition,
+         JunctionRelation,Weather, SurfaceCondition) 
+
+#filters out blank rows
+tempe_filter <- tempe_filter[!(tempe_filter$AlcoholUse_Drv1 == ""), ]
+```
+
+```{r tempe summary, include=FALSE}
+summary(tempe_filter)
+```
+
+```{r tempe injury plot, include=FALSE}
+#simple barplot
+tempe_severity_plot <- ggplot(tempe_filter) +
+  geom_bar(aes(x = Injuryseverity)) +
+  theme(axis.text.x = element_text(size = 6)) +
+  xlab("Severity of Injury") +
+  ylab("Number of Injuries")+
+  scale_y_continuous(trans = 'log2')
+print(tempe_severity_plot + ggtitle("Basic Plot Summarizing Injuries in Tempe"))
+```
+```{r tempe stacked bar plot, include=FALSE}
+#testing aggregating counts for stacked bar chart
+tempe_aggregate <- count(tempe_filter, Year, Totalinjuries, AlcoholUse_Drv1)
+
+
+
+tempe_ord <- mutate(tempe_aggregate,
+                     Totalinjuries = reorder(Totalinjuries, -n, sum),
+                     AlcoholUse_Drv1 = reorder(AlcoholUse_Drv1, -n, sum))
+
+
+#stacked bar plot showing number of injuries in accordance to alcohol influence
+tempe_alcinf <- ggplot(tempe_aggregate) +
+  geom_col(aes(x = AlcoholUse_Drv1, y = n, fill = Totalinjuries))+
+  scale_y_continuous(trans = 'log2') +
+  xlab("Alcohol Use or No Apparent Use") +
+  ylab("Scaled Injuries from Accidents")
+
+#makes multiple charts for each year
+print(tempe_alcinf + facet_wrap(~ Year) + ggtitle("Faceted Stacked Charts Showing Injuries Caused by Alcohol Influence"))
+
+```
+
+```{r tempe population, include=FALSE}
+#tempe populations for future reference
+tempepop_2012 <- 164139
+tempepop_2013 <- 164742
+tempepop_2014 <- 166975
+tempepop_2015 <- 169816
+tempepop_2016 <- 174708
+tempepop_2017 <- 178339
+tempepop_2018 <- 183652
+tempepop_2019 <- 187454
+
+#tempe area mi^2
+tempe_area <- 40.22
+
+
+#filters fatalities by year
+tempe_population <- tempe_filter %>%
+  group_by(Year) %>%
+  summarise(Fatalities = sum(Totalfatalities)) %>%
+  select(Year, Fatalities)
+
+#filters accidents with no fatalites by year
+tempe_no_fatal <- tempe_filter %>%
+  group_by(Year) %>%
+  filter(Totalfatalities == 0) %>%
+  count(name = "no_fatalities")
+
+#merges fatalities and no fatalities by year
+tempe_totals <- merge(tempe_population, tempe_no_fatal)
+
+tempe_totals$Year <- as.numeric(tempe_totals$Year)
+
+#populations by year
+tempe_pops <- c(tempepop_2012, tempepop_2013, tempepop_2014, tempepop_2015,
+                 tempepop_2016, tempepop_2017, tempepop_2018, tempepop_2019)
+#appends populations
+tempe_totals$Population <- tempe_pops
+#appends population density
+tempe_totals$pop_density <- (tempe_totals$Population/tempe_area)
+
+```
+```{r tempe regression, include=FALSE}
+tempe_regression <- summary(lm(Fatalities ~ pop_density + Year, data = tempe_totals))
+tempe_regression
+```
+```{r tempe scatterplot, include=FALSE}
+
+
+tempe_fatality_plot <- ggplot() +
+  geom_point(data = tempe_totals, aes(Year, Fatalities), colour = "red") +
+  geom_point(data = tempe_totals, aes(Year, no_fatalities), colour = "blue") +
+  scale_y_continuous(trans = 'log2') +
+  ylab("Total Number of Fatalities vs. Non-Fatal Accidents") +
+  xlab("Year")
+
+
+```
+## 1. Introduction
+For our final report we decided to study car crash data in 3 US cities, Baton Rouge, Louisiana; Seattle, Washington; and Tempe, Arizona. We chose these three cities because of their similarities and differences. Baton Rouge is a relatively stagnant city with respect to population and area, neither having grown much in the past 10 years, with population actually slightly declining. Seattle, because it has not increased in area, but its a;ready high population has increased at the third fastest rate in the country. Finally, we chose Tempe because has also been increasing a rapid rate, but it has a lower population than Seattle. The differing populations in these cities and their trends are what inclined us to chose them, as well as having the most available and most well documented data that we could find. Our research question in these three cities was: how accurate of a predictor is population density with respect to fatal car accidents?
+
+Our hypothesis is that fatalities increase as population density increases. We believe this is the case, because the growth of a city is often correlated with increased economic activity, bringing more upper and middle class people into the city. This results in more cars in the city, and more drivers on the road. This can also create more foot traffic in areas of highly populated cities and result in more accidents, and therefore more fatal accidents. This is our hypothesis, we believe it is important to research this because it could help provide legislators and government officials with the information necessary to prevent excessive building permits, regulate road construction, and create overall better systems for traffic and prevent fatal accidents if possible. The opposite of our hypothesis would be that population density is not an accurate predictor of fatal car accidents.
+
+## 2. Data Descriptions
+We found out data of data.gov, a site that compiles statistical data that the government produces. There were tons of different datasets to chose from, whether national, state, city, town, county, etc. However, after looking through all the options, the Baton Rouge, Seattle, and Tempe datasets, seemed more complete, most detailed, and most up to date. Once we started looking at the data, we decided to narrow down our focus to more specific variables such as year, fatality, injury, and factors/causes of accidents. Though some of the variables had different names accross datasets, they are generally represent the same things. 
+
+Depending on the city, there was slightly different information available for the accident. For example, the Baton
+Rouge data has a very clear variable "Primary.Factor" that labels the primary cause of the accident. In the
+Tempe data, the details label what might have caused the accident to occur. This includes alcohol
+influence, crashing at a junction, and the action the driver took that lead to the crash. The information and data from all cities is all similar but can be interpreted and read differently. In order for us to analyze the number of fatalities from accidents in these cities we narrowed down our variables by year. Per year, we kept number of fatalities, number of accidents without fatalities, population, and population density. With these variables for each city we can rug a regression to find the relationship between the size of the city and how fatal the accidents are. 
+
+For the sake of understanding causes for most of the data, we looked into the primary factors of accidents to see where their distributions lie. The Baton Rouge barplot shows the causes of accidents in the city during the time period. This was done to ensure that the distribution of the data was fair, and not overly representing drunk driving accidents, or terrible road conditions.
+```{r barplots}
+print(br_desc_plot + ggtitle("Cause of Car Accidents in Baton Rouge from 2010-2021"))
+```
+The Seattle and Tempe plots focused on the severity of accidents. The Seattle plot shows distribution of severity among the accidents, and the Tempe plot summarizes the degree of injury. 
+```{r more barplot}
+print(sea_severity + ggtitle("Total Severity of Accidents in Seattle"))
+print(tempe_severity_plot + ggtitle("Basic Plot Summarizing Injuries in Tempe"))
+```
+Our response variable is the amount of fatalities occurring as a function of population density. The degree of severity and causes of accidents are relevant because it could be possible that with an increase in population density, there is an increase in total accidents but not severity. It could also be the case that the causes of accidents become more and more concentrated on violations and conditions of drivers.
+
+## 3. Results - Scatterplots and Regressions
+
+Now we will show the results of our data.
+
+In Baton Rouge, there was a stark contrast between the number of fatal car accidents each year and the total number of accidents. After accounting for population changes during each year between 2010 and 2020, we were able to see that the changes between each year showed no significant pattern. This was further confirmed after running a regression on fatality counts and population density with respect to each year. The results of the regression showed that the Baton Rouge R squared is too small to be described as accurately predicting the data. The p-value is too large to describe the correlation between car accident fatality and population changes from 2010-2019, seeing as it is greater than .05. From the size of the p-value, we fail to reject the null hypothesis with the Baton Rouge data set. 
+```{r baton_scatter and regression}
+print(fatality_plot + ggtitle("Number of Car Accidents in Baton Rouge from 2010-2020"))
+
+baton_rouge_regression
+```
+
+In Seattle, there was also a contrast between the total number of fatal and non fatal accidents each year. Again, when accounting for population changes, they made no significant impact on the frequency of fatal car accidents. The only two trends that one can see in the geom point plot is that the number of fatalities and number of non fatalities in car accidents stay relatively consistent year over year. The bar plot confirms that the lowest frequency of accident was the most severe while the least severe accident is most common. Furthermore, a regression on fatality counts and population density shows that r-squared is too small to accurately describe the data. The p-value is also too large to determine a correlation between car accident fatality and population changes in Seattle, as it is greater than 0.05. Therefore, we fail to reject the null hypothesis with the Seattle data set.
+```{r trents_seattle_scatterplot_regression}
+print(fatality_plot_sea + ggtitle("Number of Car Accidents in Seattle from 2012-2019"))
+
+seattle_regression
+```
+
+Similarly in Tempe, there was a much higher number of non-fatal accidents compared with he number of fatal accidents. The change in population over the years did not have a significant impact on the number of fatalities but did seem to increase the number of accidents. The population in Tempe is known to have been growing over the recent years but again this impact was not significant based on the regression. The regression shows the r-squared value represents a somewhat high amount of variability and does not accurately predict the data. The p-value is also too large to determine a correlation in fatalities and population in Tempe. Once again, we fail to reject the null hypothesis with the Tempe data. 
+```{r dylans_scatterplot_regression}
+print(tempe_fatality_plot + ggtitle("Fatalities in Tempe Accidents 2012-2019"))
+
+tempe_regression
+```
+
+## 4. Conclusion
+
+In conclusion, our hypothesis was that as population density increased there would be a rise in fatal car accidents. The null hypothesis was that as population density increased, there would be little to no change in fatal car accidents. Based on the R-squared and p-values recorded in the Baton Rouge, Seattle and Tempe regressions, we fail to reject the null hypothesis. All of our p-values were >.05 which indicated that we could not reject the null hypothesis. 
+We do not find a lot of support for our hypothesis based on our data and analysis, so more research is necessary. A major limitation of our analysis is that we only looked at 10 years. By looking at a trend over 50 years we could learn more about the causes of fatal accidents, their frequency, and the trend in them with respect to growing and declining populations in cities. We were also limited in the quality of data that we used. Since a lot of this data comes from police reports, there is the possibility of human error and a misrepresentation of some aspects of data. We can also not say with certainty that all accidents were reported, and we cannot measure how many were unreported. 
