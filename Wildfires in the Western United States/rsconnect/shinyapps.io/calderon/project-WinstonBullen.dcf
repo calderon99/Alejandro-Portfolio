@@ -1,0 +1,13 @@
+name: project-WinstonBullen
+title: project-WinstonBullen
+username:
+account: calderon
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 3782798
+bundleId: 4337464
+url: https://calderon.shinyapps.io/project-WinstonBullen/
+when: 1615582842.95852
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: .RData|.RDataTmp|index.html|index.Rmd|README.md|data/.gitignore

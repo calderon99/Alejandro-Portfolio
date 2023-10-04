@@ -1,0 +1,179 @@
+---
+title: "Western US Wildfires Exploratory Report"
+author: "Group G3: Winston Bullen, Alejandro Calderon, Julius Saba Cecilia, Noah Hong"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+source("analysis.R")
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Problem Domain Description
+
+A wildfire is a fire occurring in nature that is unplanned and uncontrolled. They are a natural occurrence that bring new life to the ecosystem and carry other surprising benefits to the environment. There are unnatural causes of wildfires, however, most notably from human activity. Whether natural or man-made, wildfires can be dangerous to nearby communities and ecosystems if they grow too large.
+ 
+The prevalence of wildfires in the Western United States seems to be growing each year. Such an observation is common among residents of Washington, including our group members. We will investigate if wildfires are indeed gaining prevalence, and if so, at what rate. Additionally, we intend to explore the trends in the causes and effects of these fires to help educate the public.
+ 
+Presenting the causes and effects of such catastrophic events will heighten public awareness of the issue. This awareness will better prepare citizens to make informed decisions in their interaction with the environment and lawmaking. Understanding causes of wildfires will help prevent them, and learning the consequences of environmental misconduct will deter poor behavior.
+ 
+Our group is interested in this subject because it hits close to home. Most of our group members are residents of the Western United States, a region that has brutal wildfire seasons. The smoke and ash that consumes our cities each summer are a constant reminder of the environmental battles we face. We are curious to know the trends of these wildfires, their causes, and their effects.
+ 
+[The ESRI Disaster Response Program Wildfire Map](https://www.arcgis.com/apps/webappviewer/index.html?id=2ff1677111ae4018ac705fcce7c3312f) is a web application that uses real-time data to map burning wildfires in the United States. Some of our group members used this in recent summers to see where fires were burning in real-time. Such information is useful to plan outdoor events and travel since avoiding areas of high smoke is important for one's health.
+ 
+[The Union of Concerned Scientists recently published a feature detailing US wildfire trends in a series of infographics](https://www.ucsusa.org/resources/infographic-wildfires-and-climate-change). The article displays a series of graphs showing wildfire trends and various images of their immense destruction. The article explores the most significant causes and what appropriate action may look like, although it does not go very far in-depth. Our group would like to explore the topic in more detail to see if a more nuanced perspective can be reached through data science.
+
+## Data Description
+
+### [Fire Service USDA Wildfire Locations from ~1990-2018](https://github.com/BuzzFeedNews/2018-07-wildfire-trends)
+
+The USDA dataset contains wildfire dates, causes, and locations between 1990 and 2018 in the United States. The dataset was provided by the USDA and was collected by the California Department of Forestry and Fire Protection's Fire and Resource Assessment Program. In order to understand the data better, here is the head of the dataset:
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+kable(head(usda_data))
+```
+
+Variable Notes/Explanation:
+
+- fire_size is in acres.
+
+Variable Summary Statistics:
+
+For the USDA data sets, the relevant summary statistics are provided by two separate vectors, the first is `fire_year_range` and the other `fire_size_summary`. The first one, `fire_year_range` provides a range of time during which data on fires was collected. `fire_size_summary` provides provides the mean, min, and max for the data in that order.
+
+Notable Visualization:
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+fire_size_bplot
+```
+
+This is a box plot showing the distribution of fire sizes in acres in the United States from 1990 to 2018. As seen in the box plot, at least 99% of the fires burn very few acres, but the data has many outliers burning far more. This is because the majority of Wildfires do not burn extensively because the environment oftentimes does not permit easy spread. This is a notable observation because it tells us that the majority of Wildfires are harmless, while a select few can be massive.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+causes_plot
+```
+
+This is a bar plot showing the counts of various Wildfire causes from the USDA dataset. These are all of the included categories of causes, which offers insight into the eventual categorization of human vs nature.
+
+Outliers:
+
+We looked at the two data sets from USDA and Stanford to identify significant outliers that may skew our analysis. For the USDA data set, we did not find any outliers because it comprises mostly categorical and discrete data for classification, thus identifying outliers was not relevant for this data set.
+
+### [Stanford US Wildfire Reports from 2014-2017](https://searchworks.stanford.edu/view/xj043rd8767)
+
+The Stanford dataset contains wildfire dates, causes, effects, and locations between 2014 and 2017 in California. This dataset was provided by Stanford University and was collected by the Big Local News, a project of the Stanford Journalism and Democracy Initiative. In order to understand the data better, here is the head of the dataset (many columns omitted for readability):
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+kable(head(stanford_data[c("DISCOVERY_DATE",
+                        "POO_STATE_CODE",
+                        "POO_CITY",
+                        "CAUSE_DESCRIPTION",
+                        "COMMERCIAL_DESTROYED",
+                        "COMMERCIAL_DAMAGED")]))
+```
+
+Variable Notes/Explanation:
+
+- COMMERCIAL_DESTROYED, COMMERCIAL_DAMAGED (and similar variables) are the number of buildings of commercial type that were destroyed/damaged by the fire.
+
+Variable Summary Statistics:
+
+The Stanford data was separated into five difference summarized subsections called `commercial_summary` `mfr_summary` `mixed_use_summary` `sfr_summary` `outbuildings_summary`. Each of these contains a list of three different subsections specifying condition which labeled accordingly as the damaged, destroyed, and threatened aspects of each of the main five subsections. Theses are then broken down into another three sections, which are the mean, min, and max, in that order. In all, the table can be read from top to bottom as summarized section, condition subsection, and mean/min/max. 
+
+Notable Visualizations:
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+homes_destroyed_bplot
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+homes_damaged_bplot
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+homes_threatened_bplot
+```
+
+These visualizations are a set of box plots showing the distribution of single family homes destroyed/damaged/threatened in US Wildfires from 2014 to 2017. We chose single family homes for this visualization because they are the building type most affected by wildfires (see below). Much like the distribution for fire size seen above, most wildfires do not pose much of a threat. It is the small proportion of wildfires that burn a lot that pose the largest threat. This confirms our observation that most fires pose little to no threat to both the environment and civilization.
+
+Outliers:
+
+For the Stanford data set that deals with destruction caused by the fire, we identified 8 outliers from the 8 columns of our interest that could potentially skew our data. The outlier for commercial destroyed was `r outlier_COMMERCIAL_DESTROYED`, for MFR damaged was  `r outlier_MFR_DAMAGED`, for MFR threatened was `r outlier_MFR_THREATENED_72`, for mixed use destroyed was `r outlier_MIXED_USE_DESTROYED`, for mixed use damaged `r outlier_MIXED_USE_DAMAGED`, for mixed use threatened was `r outlier_MIXED_USE_THREATENED_72`, for outbuildings damaged was `r outlier_OUTBUILDINGS_DAMAGED`, and outbuildings threatened was   `r outlier_OUTBUILDINGS_THREATENED_72`. It is also important to note that majority of our data set consists of cases of small fire, so the data for destruction were generally very low. We still believe the little data we have from the destruction caused by major fire are important, so the outliers are from those small data that are disproportionately higher compared to the rest. 
+
+## Question Analyses
+
+### Is the prevalence of wildfires in the United States growing according to common metrics? 
+
+The prevalence of wildfires is typically measured in the number of fires, acres burned, and property destruction. Identifying the trend of wildfire prevalence over time might indicate environmental trends of interest. Better understanding these trends will better equip us to interact with the environment in a responsible way.
+
+The data analysis method we used was a point plot of the number of fires each year from 1990-2018 using the USDA dataset. The plot also features a linear regression. Such a plot lets the user see the data for themselves and easily recognize the trend. This creates an engaging point of analysis that effectively addresses the analysis question.
+
+The regression plot is seen below. As seen in the plot, the number of wildfires increased from 1990 to 2018. Note that a 28 year period is not a long amount of time in environmental studies, but we still see a noticeable increase.
+
+```{r fig.width=10, echo=FALSE, message=FALSE, warning=FALSE}
+usda_fires_over_time_plot
+```
+
+The increase in the linear regression indicates that fires are indeed growing according to common metrics. Such a correlation was expected by our group. The metric in this case is the number of fires, and the region is the United States. This means that as the U.S. population grows, the number of wildfires in the United States increases. This is most likely a combination of two things: more people to accidentally start fires, and more people to contribute to the environmental footprint of humanity.
+
+### What are the trends among the causes and effects of these wildfires?
+
+The causes of wildfires are typically recorded by a one/two word incident description. The effects of wildfires are typically recorded in terms of nature/civilization property damage, which could be monetary or physical destruction. Understanding the trends in the causes of wildfires reveals where our problems with the environment lie. Understanding the effects is a good measure of the significance of these environmental trends.
+
+The data analysis method we used was a bar plot of wildfire causes each year from 1990-2018 using the USDA dataset. We used the Stanford dataset to investigate the effects of the wildfires from 2014-2017. We used another set of bar charts showing the number of buildings destroyed, damaged, and threatened in five major categories. These categories are single homes, outbuildings, manufacturing, commercial, and mixed use.
+
+The plots we created are seen below. As seen in the causes plot, the proportion of wildfires caused by humans seems to be decreasing inversely to those caused by nature. This means that the share of wildfires caused by humans seems to be decreasing while the share of wildfires caused by nature/other seems to be increasing. As seen in the effects plots, the vast majority of buildings threatened/damaged/destroyed are single family homes.
+
+```{r fig.width=10, echo=FALSE, message=FALSE, warning=FALSE}
+causes_by_year_plot
+```
+
+```{r fig.width=10, echo=FALSE, message=FALSE, warning=FALSE}
+threatened_plot
+```
+
+```{r fig.width=10, echo=FALSE, message=FALSE, warning=FALSE}
+damaged_plot
+```
+
+```{r fig.width=10, echo=FALSE, message=FALSE, warning=FALSE}
+destruction_plot
+```
+
+The changing nature of the human vs nature/other causes was an expected result. Public information campaigns about preventing forest fires are famous in the United States (everyone knows Smokey Bear after all). The decrease in the proportion of wildfires that are caused by humans is evidence that these information campaigns work. The increase in the proportion of wildfires caused by nature/other is likely an indication of climate change. 
+
+Discovering that single family homes are most impacted by wildfires was an expected result. Homes are the building type most likely to be close to more rural areas in large numbers. Rural areas are where wildfires thrive, particularly in dry wooded areas with high temperatures. This shows that the people most at risk of wildfires are average citizens and their belongings, not just nature/arbitrary buildings.
+
+### What States/Regions are affected the most by these fires?
+
+The longitude and latitude of a wildfire is the geographical recording standard for wildfires. Understanding the regions affected most by these fires offers insight into what type of climate wildfires thrive in. This could also raise awareness for people living in affected areas.
+
+The data analysis method we used was a geographical point map of the Western United States that plots the location of wildfires using the USDA dataset. Only wildfires that burned more that 500 acres are included in the visualization. To put that into perspective, UW campus is 493 acres! This visualization effectively shows which regions are most affected by number of location points. We also made a set of bar charts counting the number of buildings destroyed, damaged, and threatened in each Western State. We used the Stanford dataset for this.
+
+The plots we created are seen below. As seen in the wildfire locations map, there are quite a few fires in the Western United States. The visualization is even more staggering when you remember that only fires that burned 500 acres or more are included in the visualization. Plotting every wildfire covered most of the map, and even crashed RStudio upon frequent loading!
+
+```{r fig.width=10, echo=FALSE, message=FALSE, warning=FALSE}
+us_fires_map
+```
+
+The wildfire locations map show some expected results: wildfires tend to cluster around wooded areas with hot and dry seasons, such as California and neighboring states. The unexpected result was Idaho, which has many wildfires despite being a northern state. Upon further research, we discovered that Idaho has extreme seasons with summers that rival the sunbelt in terms of heat and low humidity. 
+
+```{r fig.width=10, echo=FALSE, message=FALSE, warning=FALSE}
+building_cause_plot
+```
+
+The plots of total buildings affected in every Western U.S. State revealed an interesting trend. First, notice the logarithm scale of the y axis. Second, recognize that the labels for each state plot is the corresponding [FIPS code](https://www.bls.gov/respondents/mwr/electronic-data-interchange/appendix-d-usps-state-abbreviations-and-fips-codes.htm) for each state. The trend we discovered was that more heavily wooded states such as California, Oregon, and Washington had a higher proportion of buildings destroyed and damaged out of all buildings affected. In other words, of all buildings destroyed/damaged/threatened, the proportion of which that were damaged/destroyed were higher in more wooded states. This is likely because wildfires in more wooded areas are harder to contain than in less wooded areas. The woods have more fuel, such as wood and brush, after all. This would cause more buildings to be damaged/destroyed in wooded areas because fires are harder to control in such conditions.
+
+### Is there a relationship between wildfire proximity to a city and its cause?
+
+Combining our longitude/latitude and cause data allows us to create this awesome visualization. Understanding the relationship between the location of a wildfire and its cause will better equip the public to prevent human caused fires. 
+
+The data analysis method we used was a geographical point map of the Western United States that plots the location of wildfires. Each point is categorized as either human caused or natural. The wildfires are from 1990-2018 using the USDA dataset. 
+
+```{r fig.width=10, echo=FALSE, message=FALSE, warning=FALSE}
+us_fires_causes_map
+```
+
+As seen in the plot, the Wildfires closer to more populated cities tend to be started more by humans rather than nature. Look at the areas around the following cities: Los Angeles CA, Phoenix AZ, Tucson AZ, and Boise ID. These cities are just a few examples of this trend. I encourage you to examine the area around other cities of your choice! The reason this trend exists is obvious and we expected it: the more humans in a geographical area, the more they start fires in that area.
+
