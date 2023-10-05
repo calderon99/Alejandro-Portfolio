@@ -1,2 +1,7 @@
-# csss321-car-accident-project
-Alejandro, Dylan, and Trent's final project for CSS321 at UW. Spring 2021
+# Car Accident Research Project
+Team Members:
+- Alejandro Calderon
+- Dylan Cracker
+- Trent Douglas
+Goal:
+- Understand how road density and population density impacts the prevalence of car accidents in US cities.
